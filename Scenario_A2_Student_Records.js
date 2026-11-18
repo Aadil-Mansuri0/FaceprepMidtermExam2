@@ -33,16 +33,20 @@ db.students.insertOne({
 // Try to insert another student with the same _id: 101.
 
 // COMMAND
-db.students.insertOne({
-  _id: 101,
-  name: "Duplicate Arun",
-  dept: "CSE",
-  marks: 80,
-  scores: [
-    { subject: "DBMS", mark: 80 },
-    { subject: "Maths", mark: 80 }
-  ]
-});
+try {
+  db.students.insertOne({
+    _id: 101,
+    name: "Duplicate Arun",
+    dept: "CSE",
+    marks: 80,
+    scores: [
+      { subject: "DBMS", mark: 80 },
+      { subject: "Maths", mark: 80 }
+    ]
+  });
+} catch (error) {
+  print(error.message);
+}
 
 // OUTPUT
 /*
