@@ -1,14 +1,11 @@
-/*
-SCENARIO A2: STUDENT RECORDS — INSERT, QUERY, SORT AND PROJECT
-Database: collegeDB
-Collection: students
-*/
+// Scenario A2: Student Records - Insert, Query, Sort and Project
+// Database: collegeDB | Collection: students
 
-// REQUIREMENT 1
-// Insert the student Arun with _id: 101 and his subject-wise scores.
-
-// COMMAND
 db = db.getSiblingDB("collegeDB");
+
+// Requirement 1: Insert Arun (_id: 101) with subject-wise scores.
+
+// Command:
 db.students.insertOne({
   _id: 101,
   name: "Arun",
@@ -20,19 +17,27 @@ db.students.insertOne({
   ]
 });
 
-// OUTPUT
+// Output command:
+db.students.findOne({ _id: 101 });
+
+// Output:
 /*
 {
-  acknowledged: true,
-  insertedId: 101
+  _id: 101,
+  name: "Arun",
+  dept: "CSE",
+  marks: 78,
+  scores: [
+    { subject: "DBMS", mark: 85 },
+    { subject: "Maths", mark: 70 }
+  ]
 }
 */
 
 
-// REQUIREMENT 2
-// Try to insert another student with the same _id: 101.
+// Requirement 2: Try to insert another student with the same _id: 101.
 
-// COMMAND
+// Command:
 try {
   db.students.insertOne({
     _id: 101,
@@ -45,22 +50,34 @@ try {
     ]
   });
 } catch (error) {
-  print(error.message);
+  print("Duplicate key error: " + error.message);
 }
 
-// OUTPUT
-/*
-E11000 duplicate key error collection: collegeDB.students
-index: _id_ dup key: { _id: 101 }
+// Output command:
+db.students.find({ _id: 101 }).toArray();
 
-The insert is rejected because MongoDB does not allow duplicate _id values.
+// Output:
+/*
+Duplicate key error: E11000 duplicate key error ... dup key: { _id: 101 }
+
+[
+  {
+    _id: 101,
+    name: "Arun",
+    dept: "CSE",
+    marks: 78,
+    scores: [
+      { subject: "DBMS", mark: 85 },
+      { subject: "Maths", mark: 70 }
+    ]
+  }
+]
 */
 
 
-// REQUIREMENT 3
-// Insert the remaining five students (102 to 106) using a single insertMany.
+// Requirement 3: Insert the remaining five students (102 to 106) using one insertMany.
 
-// COMMAND
+// Command:
 db.students.insertMany([
   {
     _id: 102,
@@ -114,31 +131,36 @@ db.students.insertMany([
   }
 ]);
 
-// OUTPUT
+// Output command:
+db.students.find(
+  { _id: { $in: [102, 103, 104, 105, 106] } },
+  { _id: 1, name: 1, dept: 1, marks: 1 }
+).sort({ _id: 1 }).toArray();
+
+// Output:
 /*
-{
-  acknowledged: true,
-  insertedIds: {
-    '0': 102,
-    '1': 103,
-    '2': 104,
-    '3': 105,
-    '4': 106
-  }
-}
+[
+  { _id: 102, name: "Bala", dept: "IT", marks: 66 },
+  { _id: 103, name: "Chitra", dept: "CSE", marks: 91 },
+  { _id: 104, name: "Divya", dept: "ECE", marks: 72 },
+  { _id: 105, name: "Eswar", dept: "IT", marks: 84 },
+  { _id: 106, name: "Farah", dept: "CSE", marks: 59 }
+]
 */
 
 
-// REQUIREMENT 4
-// List all students who belong to the CSE department.
+// Requirement 4: List all students who belong to the CSE department.
 
-// COMMAND
-db.students.find(
+// Command:
+db.students.find({ dept: "CSE" });
+
+// Output command:
+printjson(db.students.find(
   { dept: "CSE" },
   { _id: 1, name: 1, dept: 1, marks: 1 }
-).toArray();
+).toArray());
 
-// OUTPUT
+// Output:
 /*
 [
   { _id: 101, name: "Arun", dept: "CSE", marks: 78 },
@@ -148,16 +170,18 @@ db.students.find(
 */
 
 
-// REQUIREMENT 5
-// List students whose overall marks are 75 or more.
+// Requirement 5: List students whose overall marks are 75 or more.
 
-// COMMAND
-db.students.find(
+// Command:
+db.students.find({ marks: { $gte: 75 } });
+
+// Output command:
+printjson(db.students.find(
   { marks: { $gte: 75 } },
   { _id: 1, name: 1, marks: 1 }
-).toArray();
+).toArray());
 
-// OUTPUT
+// Output:
 /*
 [
   { _id: 101, name: "Arun", marks: 78 },
@@ -167,16 +191,18 @@ db.students.find(
 */
 
 
-// REQUIREMENT 6
-// List students who belong to either the CSE or the IT department.
+// Requirement 6: List students who belong to either the CSE or IT department.
 
-// COMMAND
-db.students.find(
+// Command:
+db.students.find({ dept: { $in: ["CSE", "IT"] } });
+
+// Output command:
+printjson(db.students.find(
   { dept: { $in: ["CSE", "IT"] } },
   { _id: 1, name: 1, dept: 1, marks: 1 }
-).toArray();
+).toArray());
 
-// OUTPUT
+// Output:
 /*
 [
   { _id: 101, name: "Arun", dept: "CSE", marks: 78 },
@@ -188,12 +214,21 @@ db.students.find(
 */
 
 
-// REQUIREMENT 7
-// Find students who scored more than 80 in DBMS.
-// Subject and mark must match the same array element.
+// Requirement 7: Find students who scored more than 80 in DBMS.
+// The subject and mark conditions must match the same array element.
 
-// COMMAND
-db.students.find(
+// Command:
+db.students.find({
+  scores: {
+    $elemMatch: {
+      subject: "DBMS",
+      mark: { $gt: 80 }
+    }
+  }
+});
+
+// Output command:
+printjson(db.students.find(
   {
     scores: {
       $elemMatch: {
@@ -203,9 +238,9 @@ db.students.find(
     }
   },
   { _id: 1, name: 1, scores: 1 }
-).toArray();
+).toArray());
 
-// OUTPUT
+// Output:
 /*
 [
   {
@@ -236,17 +271,23 @@ db.students.find(
 */
 
 
-// REQUIREMENT 8
-// Show only the name and marks of the top 3 students, highest marks first.
+// Requirement 8: Show name and marks of the top 3 students, highest marks first.
 // Hide the _id field.
 
-// COMMAND
-db.students.find(
-  {},
-  { _id: 0, name: 1, marks: 1 }
-).sort({ marks: -1 }).limit(3).toArray();
+// Command:
+db.students.find({}, { _id: 0, name: 1, marks: 1 })
+  .sort({ marks: -1 })
+  .limit(3);
 
-// OUTPUT
+// Output command:
+printjson(
+  db.students.find(
+    {},
+    { _id: 0, name: 1, marks: 1 }
+  ).sort({ marks: -1 }).limit(3).toArray()
+);
+
+// Output:
 /*
 [
   { name: "Chitra", marks: 91 },
