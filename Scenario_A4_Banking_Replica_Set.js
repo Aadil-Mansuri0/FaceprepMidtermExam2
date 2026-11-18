@@ -1,25 +1,18 @@
-/*
-SCENARIO A4: BANKING APP — BUILDING AND CHECKING A REPLICA SET
-Replica Set: rs0
-Database: bank
-Collection: accounts
-*/
+// Scenario A4: Banking App - Building and Checking a Replica Set
+// Replica set: rs0 | Database: bank | Collection: accounts
 
-// REQUIREMENT 1
-// Start three mongod instances with replica set name rs0 and initiate the replica set.
+// Requirement 1: Start three mongod instances and initiate the replica set.
 
-// COMMANDS
-/*
-Open three separate terminals and run:
+// Commands to run in three separate terminals:
+//
+// mongod --replSet rs0 --port 27017 --dbpath C:\data\rs0-1
+// mongod --replSet rs0 --port 27018 --dbpath C:\data\rs0-2
+// mongod --replSet rs0 --port 27019 --dbpath C:\data\rs0-3
+//
+// Connect to one node:
+// mongosh "mongodb://localhost:27017"
 
-mongod --replSet rs0 --port 27017 --dbpath C:\data\rs0-1
-mongod --replSet rs0 --port 27018 --dbpath C:\data\rs0-2
-mongod --replSet rs0 --port 27019 --dbpath C:\data\rs0-3
-
-Connect using:
-mongosh "mongodb://localhost:27017"
-*/
-
+// Command:
 rs.initiate({
   _id: "rs0",
   members: [
@@ -29,37 +22,43 @@ rs.initiate({
   ]
 });
 
-// OUTPUT
-/*
-{ ok: 1 }
+// Output command:
+printjson(rs.status().ok);
 
-After a few seconds, one member becomes PRIMARY and the other two become SECONDARY.
+// Output:
+/*
+1
 */
 
 
-// REQUIREMENT 2
-// Find out which member is PRIMARY and which members are SECONDARY.
+// Requirement 2: Find which member is PRIMARY and which members are SECONDARY.
 
-// COMMAND
+// Command:
 rs.status();
 
-// OUTPUT
+// Output command:
+printjson(
+  rs.status().members.map(member => ({
+    name: member.name,
+    state: member.stateStr,
+    health: member.health
+  }))
+);
+
+// Output:
 /*
-Check the members array in the result.
-Example (the PRIMARY port can vary):
-
-localhost:27017  PRIMARY    health: 1
-localhost:27018  SECONDARY  health: 1
-localhost:27019  SECONDARY  health: 1
-
-There is one PRIMARY and two SECONDARY members when all nodes are healthy.
+[
+  { name: "localhost:27017", state: "PRIMARY", health: 1 },
+  { name: "localhost:27018", state: "SECONDARY", health: 1 },
+  { name: "localhost:27019", state: "SECONDARY", health: 1 }
+]
+Note: The PRIMARY port may be different after election.
 */
 
 
-// REQUIREMENT 3
-// Insert an account document using write concern w: "majority".
+// Requirement 3: Insert an account using write concern w: "majority".
 
-// COMMAND
+// Command:
 db = db.getSiblingDB("bank");
 db.accounts.insertOne(
   {
@@ -76,23 +75,10 @@ db.accounts.insertOne(
   }
 );
 
-// OUTPUT
-/*
-{
-  acknowledged: true,
-  insertedId: ObjectId("...")
-}
-*/
-
-
-// REQUIREMENT 4
-// Set read preference to secondaryPreferred and read the account back.
-
-// COMMAND
-db.getMongo().setReadPref("secondaryPreferred");
+// Output command:
 db.accounts.findOne({ accNo: 1001 });
 
-// OUTPUT
+// Output:
 /*
 {
   _id: ObjectId("..."),
@@ -100,77 +86,115 @@ db.accounts.findOne({ accNo: 1001 });
   holder: "Kumar",
   balance: 5000
 }
-
-Read preference mode: secondaryPreferred
 */
 
 
-// REQUIREMENT 5
-// Look at the oplog entry created by the insert.
+// Requirement 4: Set read preference to secondaryPreferred and read the account back.
 
-// COMMAND
+// Command:
+db.getMongo().setReadPref("secondaryPreferred");
+db.accounts.findOne({ accNo: 1001 });
+
+// Output command:
+print("Read preference: " + db.getMongo().getReadPrefMode());
+printjson(db.accounts.findOne({ accNo: 1001 }));
+
+// Output:
+/*
+Read preference: secondaryPreferred
+{
+  _id: ObjectId("..."),
+  accNo: 1001,
+  holder: "Kumar",
+  balance: 5000
+}
+*/
+
+
+// Requirement 5: Look at the oplog entry created by the insert.
+
+// Command:
 db.getSiblingDB("local").getCollection("oplog.rs")
   .find()
   .sort({ $natural: -1 })
   .limit(5);
 
-// OUTPUT
-/*
-The latest oplog entries are displayed.
-The insert entry has fields similar to:
+// Output command:
+printjson(
+  db.getSiblingDB("local").getCollection("oplog.rs")
+    .find({ ns: "bank.accounts" })
+    .sort({ $natural: -1 })
+    .limit(5)
+    .toArray()
+);
 
-{
-  ts: Timestamp(...),
-  t: NumberLong(...),
-  h: NumberLong(...),
-  v: 2,
-  op: "i",
-  ns: "bank.accounts",
-  o: {
-    _id: ObjectId("..."),
-    accNo: 1001,
-    holder: "Kumar",
-    balance: 5000
+// Output:
+/*
+[
+  {
+    ts: Timestamp(...),
+    t: NumberLong(...),
+    h: NumberLong(...),
+    v: 2,
+    op: "i",
+    ns: "bank.accounts",
+    o: {
+      _id: ObjectId("..."),
+      accNo: 1001,
+      holder: "Kumar",
+      balance: 5000
+    }
   }
-}
+]
 */
 
 
-// REQUIREMENT 6
-// Force the current PRIMARY to step down and observe the new PRIMARY.
+// Requirement 6: Force the current PRIMARY to step down and observe the new PRIMARY.
 
-// COMMAND
-/*
-Run this command separately while connected to the current PRIMARY:
+// Command (run separately on the current PRIMARY):
+// rs.stepDown(60);
 
-rs.stepDown(60)
+// Reconnect to the replica set:
+// mongosh "mongodb://localhost:27017,localhost:27018,localhost:27019/?replicaSet=rs0"
 
-Reconnect to the replica set:
-mongosh "mongodb://localhost:27017,localhost:27018,localhost:27019/?replicaSet=rs0"
-*/
+// Output command (after reconnecting):
+printjson(
+  rs.status().members.map(member => ({
+    name: member.name,
+    state: member.stateStr,
+    health: member.health
+  }))
+);
 
-// OUTPUT
+// Output:
 /*
 The old PRIMARY steps down.
-MongoDB elects an eligible SECONDARY as the new PRIMARY.
-The exact PRIMARY port may vary after the election.
+An eligible SECONDARY is elected as the new PRIMARY.
+The exact PRIMARY port depends on the election.
 */
 
 
-// REQUIREMENT 7
-// Check replication health and the replication lag of SECONDARY members.
+// Requirement 7: Check replica-set health and replication lag of SECONDARY members.
 
-// COMMAND
+// Command:
 rs.status();
 rs.printSecondaryReplicationInfo();
 
-// OUTPUT
+// Output command:
+printjson(
+  rs.status().members.map(member => ({
+    name: member.name,
+    state: member.stateStr,
+    health: member.health,
+    optime: member.optimeDate
+  }))
+);
+rs.printSecondaryReplicationInfo();
+
+// Output:
 /*
-rs.status() displays the state and health of all replica-set members.
-
-rs.printSecondaryReplicationInfo() displays the replication delay
-of each SECONDARY member relative to the PRIMARY.
-
-A healthy replica set normally has one PRIMARY and two SECONDARY
-members, each with health: 1.
+One PRIMARY and two SECONDARY members should be shown.
+Each healthy member has health: 1.
+The secondary replication information displays the time delay
+between the PRIMARY and each SECONDARY.
 */
