@@ -28,11 +28,11 @@ rs.initiate({
 });
 
 // Output command:
-rs.status();
+rs.status().ok;
 
 // Output:
 /*
-{ ok: 1 }
+1
 
 After a few seconds, one member becomes PRIMARY
 and the other two members become SECONDARY.
